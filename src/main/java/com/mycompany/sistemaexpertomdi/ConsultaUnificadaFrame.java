@@ -51,8 +51,8 @@ public class ConsultaUnificadaFrame extends InternalFrame {
     
     private void initComponents() {
         // Panel principal con división vertical
-        JPanel panelMain = new JPanel(new BorderLayout(10, 10));
-        panelMain.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JPanel panelMain = new JPanel(new BorderLayout(15, 15));
+        panelMain.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         
         // 1. PANEL SUPERIOR (FORMULARIO DE CONSULTA)
         JPanel panelConsulta = crearPanelConsulta();
@@ -74,9 +74,9 @@ public class ConsultaUnificadaFrame extends InternalFrame {
         panelConsulta.setBorder(BorderFactory.createTitledBorder("Nuevo Diagnóstico"));
         
         // Panel datos paciente
-        JPanel panelDatos = new JPanel(new GridLayout(5, 2, 5, 5));
+        JPanel panelDatos = new JPanel(new GridLayout(5, 2, 10, 10));
         panelDatos.setBorder(BorderFactory.createTitledBorder("Datos del Paciente"));
-        
+       
         panelDatos.add(new JLabel("Identificación:"));
         txtIdentificacion = new JTextField();
         panelDatos.add(txtIdentificacion);

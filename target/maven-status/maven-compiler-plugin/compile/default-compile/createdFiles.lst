@@ -1,6 +1,7 @@
 com\mycompany\sistemaexpertomdi\SistemaExpertoMDI.class
 com\mycompany\sistemaexpertomdi\ApiResponse.class
 com\mycompany\sistemaexpertomdi\HistorialCompletoResponse.class
+com\mycompany\sistemaexpertomdi\ConsultaUnificadaFrame$MultiLineCellRenderer.class
 com\mycompany\sistemaexpertomdi\ConsultaUnificadaFrame.class
 com\mycompany\sistemaexpertomdi\UsuarioResponse.class
 com\mycompany\sistemaexpertomdi\InternalFrame.class

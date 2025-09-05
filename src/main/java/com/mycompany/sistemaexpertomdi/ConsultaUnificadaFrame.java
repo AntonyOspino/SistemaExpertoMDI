@@ -15,6 +15,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import java.util.Date;
+import javax.swing.table.TableCellRenderer;
 
 public class ConsultaUnificadaFrame extends InternalFrame {
     
@@ -164,13 +166,27 @@ public class ConsultaUnificadaFrame extends InternalFrame {
         tablaResultados.setAutoCreateRowSorter(true);
         
         // Ajustar anchos de columnas
-        tablaResultados.getColumnModel().getColumn(0).setPreferredWidth(80);
+        /*tablaResultados.getColumnModel().getColumn(0).setPreferredWidth(80);
         tablaResultados.getColumnModel().getColumn(1).setPreferredWidth(100);
         tablaResultados.getColumnModel().getColumn(2).setPreferredWidth(100);
         tablaResultados.getColumnModel().getColumn(3).setPreferredWidth(50);
         tablaResultados.getColumnModel().getColumn(4).setPreferredWidth(50);
         tablaResultados.getColumnModel().getColumn(5).setPreferredWidth(100);
-        tablaResultados.getColumnModel().getColumn(6).setPreferredWidth(200);
+        tablaResultados.getColumnModel().getColumn(6).setPreferredWidth(200);*/
+        
+        tablaResultados.getColumnModel().getColumn(0).setPreferredWidth(80);  // ID
+        tablaResultados.getColumnModel().getColumn(1).setPreferredWidth(100); // Nombre
+        tablaResultados.getColumnModel().getColumn(2).setPreferredWidth(100); // Apellido
+        tablaResultados.getColumnModel().getColumn(3).setPreferredWidth(50);  // Edad
+        tablaResultados.getColumnModel().getColumn(4).setPreferredWidth(50);  // Sexo
+        tablaResultados.getColumnModel().getColumn(5).setPreferredWidth(120); // Fecha
+        tablaResultados.getColumnModel().getColumn(6).setPreferredWidth(400); // Diagnóstico (MÁS ANCHA)
+        
+        // 🔥 AGREGAR RENDERER MULTILÍNEA PARA LA COLUMNA DE DIAGNÓSTICO
+        tablaResultados.getColumnModel().getColumn(6).setCellRenderer(new MultiLineCellRenderer());
+        
+        // Ajustar altura de las filas para que se vea el texto multilínea
+        tablaResultados.setRowHeight(80); // Altura suficiente para 3-4 líneas
         
         JScrollPane scrollPane = new JScrollPane(tablaResultados);
         
@@ -180,6 +196,44 @@ public class ConsultaUnificadaFrame extends InternalFrame {
         
         return panelHistorial;
     }
+    
+    class MultiLineCellRenderer extends JTextArea implements TableCellRenderer {
+        public MultiLineCellRenderer() {
+            setLineWrap(true);
+            setWrapStyleWord(true);
+            setOpaque(true);
+            setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+            setFont(new Font("SansSerif", Font.PLAIN, 11));
+        }
+
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+
+            if (isSelected) {
+                setForeground(table.getSelectionForeground());
+                setBackground(table.getSelectionBackground());
+            } else {
+                setForeground(table.getForeground());
+                setBackground(table.getBackground());
+            }
+
+            setText((value == null) ? "" : value.toString());
+            adjustRowHeight(table, row);
+
+            return this;
+        }
+
+        private void adjustRowHeight(JTable table, int row) {
+            int preferredHeight = getPreferredSize().height + 12;
+            preferredHeight = Math.min(preferredHeight, 400); // Máximo 400px
+            preferredHeight = Math.max(preferredHeight, 100); // Mínimo 100px
+
+            if (table.getRowHeight(row) != preferredHeight) {
+                table.setRowHeight(row, preferredHeight);
+            }
+        }
+    }
+    
     
     // ==================== MÉTODOS PARA CONSULTA ====================
     
@@ -192,33 +246,23 @@ public class ConsultaUnificadaFrame extends InternalFrame {
                 // 2. Enviar a la API
                 String respuestaApi = enviarDatosAApi(jsonPayload);
 
-                // 3. Parsear la respuesta de la API usando DiagnosticoCompletoResponse
-                DiagnosticoCompletoResponse diagnosticoCompletoResponse = parsearRespuestaApi(respuestaApi);
+                // 3. Parsear la respuesta de la API
+                DiagnosticoCompletoResponse apiResponse = parsearRespuestaApi(respuestaApi);
 
-                if (diagnosticoCompletoResponse != null && diagnosticoCompletoResponse.getMessage() != null) {
-                    // 4. Mostrar resultado
-                    StringBuilder mensaje = new StringBuilder();
-                    mensaje.append("✅ ").append(diagnosticoCompletoResponse.getMessage()).append("\n\n");
-                    mensaje.append("📋 Información del Diagnóstico:\n");
-                    mensaje.append("• ID del Historial: ").append(diagnosticoCompletoResponse.getHistorialId()).append("\n");
-                    mensaje.append("• ID del Diagnóstico: ").append(diagnosticoCompletoResponse.getDiagnosticoId()).append("\n");
-                    mensaje.append("• Nombre: ").append(diagnosticoCompletoResponse.getDiagnostico().getNombre()).append("\n");
-                    mensaje.append("• Gravedad: ").append(diagnosticoCompletoResponse.getDiagnostico().getNivelGravedad()).append("\n\n");
-                    mensaje.append("📝 Descripción:\n").append(diagnosticoCompletoResponse.getDiagnostico().getDescripcion()).append("\n\n");
-                    mensaje.append("💡 Recomendaciones:\n").append(diagnosticoCompletoResponse.getDiagnostico().getRecomendaciones()).append("\n\n");
-                    mensaje.append("👤 Paciente: ").append(txtNombre.getText()).append(" ").append(txtApellido.getText())
-                          .append(" (ID: ").append(txtIdentificacion.getText()).append(")");
+                if (apiResponse != null && apiResponse.getMessage() != null) {
+                    // 4. LIMPIAR LA TABLA y mostrar SOLO este diagnóstico
+                    modeloTabla.setRowCount(0); // ← Limpiar tabla antes de agregar
+                    mostrarResultadoEnTabla(apiResponse);
 
-                    JOptionPane.showMessageDialog(this, 
-                        mensaje.toString(),
-                        "Diagnóstico Enviado", 
-                        JOptionPane.INFORMATION_MESSAGE);
-
-                    // 5. Recargar el historial para mostrar el nuevo registro
-                    cargarTodosRegistros();
-
-                    // 6. Limpiar formulario para nuevo ingreso
+                    // 5. Limpiar formulario para nuevo ingreso
                     limpiarFormulario();
+
+                    // 6. Mostrar mensaje de éxito
+                    JOptionPane.showMessageDialog(this, 
+                        "Diagnóstico procesado exitosamente\n" +
+                        "Ahora mostrando solo este diagnóstico en la tabla",
+                        "Éxito",
+                        JOptionPane.INFORMATION_MESSAGE);
                 }
 
             } catch (Exception ex) {
@@ -226,11 +270,78 @@ public class ConsultaUnificadaFrame extends InternalFrame {
                     "Error al enviar datos: " + ex.getMessage(),
                     "Error",
                     JOptionPane.ERROR_MESSAGE);
-                ex.printStackTrace();
             }
         }
     }
     
+    
+    // Método para mostrar el resultado directamente en la tabla
+    private void mostrarResultadoEnTabla(DiagnosticoCompletoResponse apiResponse) {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+            String fechaStr = sdf.format(new Date());
+
+            // Crear mensaje con el MISMO formato que agregarFilaATabla
+            StringBuilder diagnosticoBuilder = new StringBuilder();
+
+            // 1. INFORMACIÓN DEL DIAGNÓSTICO
+            diagnosticoBuilder.append("✅ ").append(apiResponse.getMessage()).append("\n\n");
+
+            if (apiResponse.getDiagnostico() != null) {
+                DiagnosticoResponse diag = apiResponse.getDiagnostico();
+
+                diagnosticoBuilder.append("🎯 DIAGNÓSTICO\n")
+                                .append("● Nombre: ").append(diag.getNombre()).append("\n")
+                                .append("● Gravedad: ").append(diag.getNivelGravedad()).append("\n\n");
+
+                if (diag.getDescripcion() != null && !diag.getDescripcion().isEmpty()) {
+                    diagnosticoBuilder.append("📋 DESCRIPCIÓN\n")
+                                    .append(formatearTexto(diag.getDescripcion(), 60)).append("\n\n");
+                }
+
+                if (diag.getRecomendaciones() != null && !diag.getRecomendaciones().isEmpty()) {
+                    diagnosticoBuilder.append("💡 RECOMENDACIONES\n")
+                                    .append(formatearTexto(diag.getRecomendaciones(), 60)).append("\n\n");
+                }
+            }
+
+            // 2. PREGUNTAS Y RESPUESTAS
+            if (apiResponse.getPreguntasRespuestas() != null && 
+                !apiResponse.getPreguntasRespuestas().isEmpty()) {
+
+                diagnosticoBuilder.append("❓ PREGUNTAS Y RESPUESTAS\n");
+                for (PreguntaRespuestaResponse pr : apiResponse.getPreguntasRespuestas()) {
+                    String respuesta = pr.getRespuesta() == 1 ? "✅ Sí" : "❌ No";
+                    diagnosticoBuilder.append("● ").append(pr.getPregunta())
+                                    .append(": ").append(respuesta).append("\n");
+                }
+                diagnosticoBuilder.append("\n");
+            }
+
+            // 3. METADATOS
+            diagnosticoBuilder.append("📊 METADATOS\n")
+                            .append("● ID Historial: ").append(apiResponse.getHistorialId()).append("\n")
+                            .append("● ID Diagnóstico: ").append(apiResponse.getDiagnosticoId()).append("\n")
+                            .append("● Fecha: ").append(fechaStr);
+
+            // Agregar a la tabla
+            modeloTabla.addRow(new Object[]{
+                txtIdentificacion.getText(),
+                txtNombre.getText().trim(),
+                txtApellido.getText().trim(),
+                spnEdad.getValue(),
+                cmbSexo.getSelectedItem(),
+                fechaStr,
+                diagnosticoBuilder.toString()
+            });
+
+            // Ajustar altura de la fila
+            tablaResultados.setRowHeight(modeloTabla.getRowCount() - 1, 350);
+
+        } catch (Exception ex) {
+            System.out.println("Error al mostrar resultado en tabla: " + ex.getMessage());
+        }
+    }
     
     // Método para crear el JSON de envío
     private String crearJsonParaEnvio() {
@@ -510,13 +621,45 @@ public class ConsultaUnificadaFrame extends InternalFrame {
             String sexo = historial.getUsuario() != null ? 
                          historial.getUsuario().getSexo() : "N/A";
 
-            // Obtener datos del diagnóstico
-            String diagnosticoNombre = historial.getDiagnostico() != null ? 
-                                      historial.getDiagnostico().getNombre() : "N/A";
-            String nivelGravedad = historial.getDiagnostico() != null ? 
-                                  historial.getDiagnostico().getNivelGravedad() : "N/A";
+            // Crear diagnóstico con formato claro y separado
+            StringBuilder diagnosticoBuilder = new StringBuilder();
 
-            String diagnosticoCompleto = diagnosticoNombre + " (" + nivelGravedad + ")";
+            // 1. INFORMACIÓN DEL DIAGNÓSTICO (si está disponible)
+            if (historial.getDiagnostico() != null) {
+                DiagnosticoResponse diag = historial.getDiagnostico();
+
+                diagnosticoBuilder.append("🎯 DIAGNÓSTICO\n")
+                                .append("● Nombre: ").append(diag.getNombre()).append("\n")
+                                .append("● Gravedad: ").append(diag.getNivelGravedad()).append("\n\n");
+
+                // Descripción con formato
+                if (diag.getDescripcion() != null && !diag.getDescripcion().isEmpty()) {
+                    diagnosticoBuilder.append("📋 DESCRIPCIÓN\n")
+                                    .append(formatearTexto(diag.getDescripcion(), 60)).append("\n\n");
+                }
+
+                // Recomendaciones con formato
+                if (diag.getRecomendaciones() != null && !diag.getRecomendaciones().isEmpty()) {
+                    diagnosticoBuilder.append("💡 RECOMENDACIONES\n")
+                                    .append(formatearTexto(diag.getRecomendaciones(), 60)).append("\n\n");
+                }
+            }
+
+            // 2. PREGUNTAS Y RESPUESTAS (separadas claramente)
+            if (historial.getPreguntasRespuestas() != null && 
+                !historial.getPreguntasRespuestas().isEmpty()) {
+
+                diagnosticoBuilder.append("❓ PREGUNTAS Y RESPUESTAS\n");
+                for (PreguntaRespuestaResponse pr : historial.getPreguntasRespuestas()) {
+                    String respuesta = pr.getRespuesta() == 1 ? "✅ Sí" : "❌ No";
+                    diagnosticoBuilder.append("● ").append(pr.getPregunta())
+                                    .append(": ").append(respuesta).append("\n");
+                }
+            }
+
+            // 3. separacion de diagnosticos
+            diagnosticoBuilder.append("\n------------------------------------------------------------------\n");
+     
 
             modeloTabla.addRow(new Object[]{
                 identificacion,
@@ -525,12 +668,40 @@ public class ConsultaUnificadaFrame extends InternalFrame {
                 edad,
                 sexo,
                 fechaStr,
-                diagnosticoCompleto
+                diagnosticoBuilder.toString()
             });
+
+            // Ajustar altura de la fila
+            int lastRow = modeloTabla.getRowCount() - 1;
+            tablaResultados.setRowHeight(lastRow, 350); // Altura suficiente
 
         } catch (Exception ex) {
             System.out.println("Error al agregar fila: " + ex.getMessage());
         }
+    }
+
+// Método auxiliar para formatear texto con saltos de línea
+    private String formatearTexto(String texto, int maxLineLength) {
+        if (texto == null || texto.isEmpty()) return "N/A";
+
+        StringBuilder formatted = new StringBuilder();
+        int currentLength = 0;
+
+        String[] words = texto.split(" ");
+        for (String word : words) {
+            if (currentLength + word.length() + 1 > maxLineLength) {
+                formatted.append("\n");
+                currentLength = 0;
+            }
+            if (currentLength > 0) {
+                formatted.append(" ");
+                currentLength++;
+            }
+            formatted.append(word);
+            currentLength += word.length();
+        }
+
+        return formatted.toString();
     }
 
     
